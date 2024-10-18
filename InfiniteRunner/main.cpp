@@ -1,6 +1,13 @@
 #define GL_SILENCE_DEPRECATION
 #include <cstdlib>
+#include <vector>
 #include <GLUT/glut.h>
+
+struct Obstacle {
+    int type; // 1 for G, 2 for U, 3 for C
+    int position; // X position of the obstacle
+};
+
 void Display();
 void StandingHuman(); //done
 void G();
@@ -11,10 +18,16 @@ void ShieldPowerUp();
 void Collectable();
 void LowerBorder();
 void UpperBorder();
+void DrawObstacle(int obstacleType, int position);
 void Anim();
+std::vector<Obstacle> obstacles; // List of obstacles
 bool duckBool = false;
+int obstacleMotion = 1000;
 float movingBackground = 0;
-int randomCoordinate = 0+ (rand() % 1000);
+
+int speed = 9;
+int obstacleChoice = 0;
+int lastObstacleTime = 0;
 void Display(){
     glClear(GL_COLOR_BUFFER_BIT);
     
@@ -32,23 +45,13 @@ void Display(){
     LowerBorder();
     glPopMatrix();
     
-    
-    //Obstacle Motion
-    glPushMatrix();
-    glTranslated(movingBackground+1000, 0, 0);
-    G();
-    glPopMatrix();
-    glPushMatrix();
-    glTranslated(movingBackground+1000, 0, 0);
-    glTranslated(0, 150, 0);
-    C();
-    glPopMatrix();
+    // Draw all obstacles from the list
+    for (const auto& obstacle : obstacles) {
+        DrawObstacle(obstacle.type, obstacle.position);
+    }
 
-    glPushMatrix();
-    //motion animation
-    glTranslated(movingBackground+1000, 0, 0);
-    U();
-    glPopMatrix();
+
+
 
     glPushMatrix();
     glTranslated(600, 500, 0);
@@ -73,6 +76,25 @@ void Display(){
     glFlush();
 }
 
+
+void DrawObstacle(int obstacleType, int position) {
+    glPushMatrix();
+    glTranslated(position, 0, 0);
+
+    // Draw the corresponding obstacle based on its type
+    switch (obstacleType) {
+        case 1: G(); break;
+        case 2:
+            glPushMatrix();
+            glTranslated(0, 200, 0);
+            U();
+            glPopMatrix();
+            break;
+        case 3: C(); break;
+    }
+
+    glPopMatrix();
+}
 
 void StandingHuman(){
     int duck = 0;
@@ -118,6 +140,8 @@ void StandingHuman(){
     
 }
 
+
+
 void G(){
     glColor3f(1, 0.8, 0);
     
@@ -160,6 +184,7 @@ void G(){
 void C(){
     
     glPushMatrix();
+    
     glTranslated(-250, 0, 0);
     
     glColor3f(1, 0, 0);
@@ -320,7 +345,30 @@ void UpperBorder(){
 }
 
 void Anim(){
-    movingBackground-=3;
+    
+    int currentTime = glutGet(GLUT_ELAPSED_TIME);
+    int timeInterval = 1000 * (10-speed);
+    if (currentTime - lastObstacleTime >= timeInterval || lastObstacleTime == 0) {
+        lastObstacleTime = currentTime;
+        int randomType = 1 + (rand() % 3);
+
+        obstacles.push_back({randomType, 1000});
+    }
+
+    // Update obstacle positions and remove those that have moved off the screen
+    for (auto it = obstacles.begin(); it != obstacles.end(); ) {
+        it->position -= speed; // Move the obstacle to the left
+
+        // Remove the obstacle if it goes off the screen
+        if (it->position < -1000) {
+            it = obstacles.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    
+    movingBackground-=speed;
+    obstacleMotion-=speed;
     if(movingBackground<=-1080){
         movingBackground=0;
     }
