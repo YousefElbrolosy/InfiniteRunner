@@ -44,14 +44,12 @@ void Display(){
     C();
     glPopMatrix();
 
-//    glPushMatrix();
-//    glTranslated(615, -75, 0);
-//    U();
-//    glPopMatrix();
-//    glPushMatrix();
-//    glTranslated(200, 0, 0);
-//    C();
-//    glPopMatrix();
+    glPushMatrix();
+    //motion animation
+    glTranslated(movingBackground+1000, 0, 0);
+    U();
+    glPopMatrix();
+
     glPushMatrix();
     glTranslated(600, 500, 0);
     SlowPowerUp();
@@ -190,29 +188,31 @@ void C(){
 
 void U(){
     glColor3f(0, 0, 0);
-    glPushMatrix();
-    glRotated(90, 0, 0, 1);
+    
     glBegin(GL_QUADS);
-    glVertex2d(250, 175);
-    glVertex2d(325, 175);
-    glVertex2d(325, 200);
-    glVertex2d(275, 200);
+    glVertex2d(0, 175);
+    glVertex2d(0, 275);
+    glVertex2d(25, 250);
+    glVertex2d(25, 200);
     glEnd();
+    
+    // Now draw the object
     glBegin(GL_LINE_LOOP);
-    glVertex2d(250, 175);
-    glVertex2d(250, 275);
-    glVertex2d(275, 250);
-    glVertex2d(275, 200);
+    glVertex2d(0, 175);
+    glVertex2d(75, 175);
+    glVertex2d(50, 200);
+    glVertex2d(25, 200);
     glEnd();
     
     glBegin(GL_POLYGON);
-    glVertex2d(275, 250);
-    glVertex2d(250, 275);
-    glVertex2d(325, 275);
-    glVertex2d(325, 260);
+    glVertex2d(50, 200);
+    glVertex2d(75, 175);
+    glVertex2d(75, 275);
+    glVertex2d(50, 250);
     glEnd();
-    glPopMatrix();
+    
 }
+
 
 void SlowPowerUp(){
     glColor3f(0, 1, 0);
