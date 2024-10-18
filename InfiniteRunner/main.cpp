@@ -7,7 +7,10 @@ struct Obstacle {
     int type; // 1 for G, 2 for U, 3 for C
     int position; // X position of the obstacle
 };
-
+struct Floaters {
+    int type; // 1 for Collectable, 2 for Shield, 3 for PowerUp
+    int position; // X position of the floater
+};
 void Display();
 void StandingHuman(); //done
 void G();
@@ -19,8 +22,12 @@ void Collectable();
 void LowerBorder();
 void UpperBorder();
 void DrawObstacle(int obstacleType, int position);
+void DrawFloater(int obstacleType, int position);
+void CollisionDetection();
 void Anim();
+
 std::vector<Obstacle> obstacles; // List of obstacles
+std::vector<Floaters> floaters; // List of obstacles
 bool duckBool = false;
 int obstacleMotion = 1000;
 float movingBackground = 0;
@@ -28,6 +35,12 @@ float movingBackground = 0;
 int speed = 9;
 int obstacleChoice = 0;
 int lastObstacleTime = 0;
+int lastFloatTime = 0;
+int angle = 0;
+
+int upAndDown = 0;
+bool up = true;
+
 void Display(){
     glClear(GL_COLOR_BUFFER_BIT);
     
@@ -53,21 +66,9 @@ void Display(){
 
 
 
-    glPushMatrix();
-    glTranslated(600, 500, 0);
-    SlowPowerUp();
-    glPopMatrix();
-
-
-    glPushMatrix();
-    glTranslated(700, 500, 0);
-    ShieldPowerUp();
-    glPopMatrix();
-    glPushMatrix();
-    glTranslated(400, 500, 0);
-    Collectable();
-    glPopMatrix();
-    
+    for (const auto& floater : floaters) {
+        DrawFloater(floater.type, floater.position);
+    }
 
     
     StandingHuman();
@@ -76,6 +77,20 @@ void Display(){
     glFlush();
 }
 
+void DrawFloater(int floaterType, int position){
+    glPushMatrix();
+    glTranslated(position, 600, 0);
+    
+    // Draw the corresponding obstacle based on its type
+    switch (floaterType) {
+        case 1: Collectable(); break;
+        case 2:
+            ShieldPowerUp();
+            break;
+        case 3: SlowPowerUp(); break;
+    }
+    glPopMatrix();
+}
 
 void DrawObstacle(int obstacleType, int position) {
     glPushMatrix();
@@ -139,8 +154,6 @@ void StandingHuman(){
     glEnd();
     
 }
-
-
 
 void G(){
     glColor3f(1, 0.8, 0);
@@ -241,6 +254,10 @@ void U(){
 
 void SlowPowerUp(){
     glColor3f(0, 1, 0);
+    
+    glPushMatrix();
+    glTranslated(0, upAndDown, 0);
+    
     glBegin(GL_POLYGON);
     glVertex2d(0, 0);
     glVertex2d(20, 10);
@@ -262,11 +279,19 @@ void SlowPowerUp(){
     glVertex2d(0, 33);
     glVertex2d(10, 23);
     glEnd();
+    
+    glPopMatrix();
+    
+
 }
 
 void ShieldPowerUp(){
     glPointSize(5);
     glColor3f(0, 0, 1);
+    
+    glPushMatrix();
+    glTranslated(0, upAndDown, 0);
+    
     glBegin(GL_QUADS);
     glVertex2d(0, 0);
     glVertex2d(30, 0);
@@ -288,9 +313,14 @@ void ShieldPowerUp(){
     glVertex2d(30, 20);
     glVertex2d(30, 40);
     glEnd();
+    
+    glPopMatrix();
 }
 
 void Collectable(){
+    glColor3b(0, 0, 0);
+    glPushMatrix();
+    glRotated(angle, 0, 0, 1);
     glBegin(GL_TRIANGLES);
     glVertex2d(0, 0);
     glVertex2d(15, 0);
@@ -306,10 +336,12 @@ void Collectable(){
     glVertex2d(15, 35);
     glVertex2d(15, 30);
     glEnd();
+    glPopMatrix();
 }
 
 void LowerBorder()
 {
+    glPointSize(5);
     glBegin(GL_LINES);
     glVertex2d(0, 175);
     glVertex2d(1080, 175);
@@ -348,13 +380,30 @@ void Anim(){
     
     int currentTime = glutGet(GLUT_ELAPSED_TIME);
     int timeInterval = 1000 * (10-speed);
+    int randomTimeInterval = rand()%2500 * 100;
     if (currentTime - lastObstacleTime >= timeInterval || lastObstacleTime == 0) {
         lastObstacleTime = currentTime;
         int randomType = 1 + (rand() % 3);
-
+        
         obstacles.push_back({randomType, 1000});
     }
 
+    if (currentTime - lastFloatTime >= randomTimeInterval || lastFloatTime == 0) {
+        lastFloatTime = currentTime;
+        int randomValue = rand() % 100;  // Generate a number between 0 and 99
+        int randomFloatType;
+
+        if (randomValue < 70) {
+            randomFloatType = 1;  // 70% chance
+        } else if (randomValue < 85) {
+            randomFloatType = 2;  // 15% chance
+        } else {
+            randomFloatType = 3;  // 15% chance
+        }
+        
+        floaters.push_back({randomFloatType, 1000});
+    }
+    
     // Update obstacle positions and remove those that have moved off the screen
     for (auto it = obstacles.begin(); it != obstacles.end(); ) {
         it->position -= speed; // Move the obstacle to the left
@@ -367,8 +416,33 @@ void Anim(){
         }
     }
     
+    for(auto it = floaters.begin(); it != floaters.end(); ){
+        it->position -= speed;
+        
+        if (it->position < -1000) {
+            it = floaters.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    
     movingBackground-=speed;
     obstacleMotion-=speed;
+    angle-=5;
+    if(upAndDown==0){
+        up = true;
+    }
+    if(upAndDown == 100){
+        up = false;
+    }
+    
+    if(up){
+        upAndDown+=1;
+    }
+    else{
+        upAndDown-=1;
+    }
+    
     if(movingBackground<=-1080){
         movingBackground=0;
     }
