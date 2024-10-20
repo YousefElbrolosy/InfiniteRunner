@@ -207,7 +207,7 @@ void handleCollisions() {
 
                 
                 // Reduce lives if applicable
-                if (noOfLives > 0 && !shield) {
+                if (noOfLives > 0 && !shield && !gameOver) {
                     noOfLives--;
                 }
 
@@ -350,12 +350,13 @@ void displayGameOverScreen() {
 
     // Display Game Over text
     char gameOverText[50];
-    if(noOfLives == 0){
-        sprintf(gameOverText, "Game Lose! Final Score: %d", score);
-    }
-    else if(timer == 0){
+    if(timer == 0){
         sprintf(gameOverText, "Game End! Final Score: %d", score);
     }
+    else if(noOfLives == 0){
+        sprintf(gameOverText, "Game Lose! Final Score: %d", score);
+    }
+
 
     print(300, 500, gameOverText); // Adjust position and format as needed
 
@@ -364,7 +365,7 @@ void displayGameOverScreen() {
 
 void time(int val)//timer animation function, allows the user to pass an integer valu to the timer function.
 {
-    if (timer>0){
+    if (timer>0 && !gameOver){
         timer-=1;
     }
 
@@ -828,14 +829,14 @@ void Anim(){
     int currentTime = glutGet(GLUT_ELAPSED_TIME);
     int timeInterval = 1000 * (10-speed);
     int randomTimeInterval = rand()%2500 * 100 * (10-speed);
-    if (currentTime>3000 && (currentTime - lastObstacleTime >= timeInterval || lastObstacleTime == 0) && (speed > 0)) {
+    if (currentTime>3000 && (currentTime - lastObstacleTime >= timeInterval) && (speed > 0)) {
         lastObstacleTime = currentTime;
         int randomType = 1 + (rand() % 3);
         
         obstacles.push_back({randomType, 1000});
     }
     
-    if (currentTime>3000 &&(currentTime - lastFloatTime >= randomTimeInterval || lastFloatTime == 0) && (speed > 0)) {
+    if (currentTime>3000 &&(currentTime - lastFloatTime >= randomTimeInterval) && (speed > 0)) {
         lastFloatTime = currentTime;
         int randomValue = rand() % 100;  // Generate a number between 0 and 99
         int randomFloatType;
