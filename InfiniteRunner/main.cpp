@@ -1,6 +1,7 @@
 #define GL_SILENCE_DEPRECATION
 #include <cstdlib>
 #include <vector>
+#include <iostream>
 #include <GLUT/glut.h>
 
 struct Obstacle {
@@ -11,6 +12,20 @@ struct Floaters {
     int type; // 1 for Collectable, 2 for Shield, 3 for PowerUp
     int position; // X position of the floater
 };
+
+struct Player {
+    float x, y, width, height;
+    bool isJumping, isDucking;
+    bool hasCollided;
+    int collisionCooldown;
+};
+
+
+
+struct CollisionBox {
+    float x, y, width, height;
+};
+
 void Display();
 void StandingHuman(); //done
 void G();
@@ -23,8 +38,16 @@ void LowerBorder();
 void UpperBorder();
 void DrawObstacle(int obstacleType, int position);
 void DrawFloater(int obstacleType, int position);
-void CollisionDetection();
+bool checkCollision(const CollisionBox& a, const CollisionBox& b);
+
+CollisionBox getPlayerCollisionBox();
+CollisionBox getObstacleCollisionBox(const Obstacle& obstacle);
+CollisionBox getFloaterCollisionBox(const Floaters& floater);
+void handleCollisions();
+
 void Anim();
+void spe(int key, int x, int y);
+void speUp(int key, int x, int y);
 
 std::vector<Obstacle> obstacles; // List of obstacles
 std::vector<Floaters> floaters; // List of obstacles
@@ -41,12 +64,124 @@ int angle = 0;
 int upAndDown = 0;
 bool up = true;
 
+bool jumpAnimation = false;
+
+int jump = 0;
+bool jumpUp = true;
+
+Player player = {90, 175, 120, 225, false, false, false, 0};
+
+
+bool checkCollision(const CollisionBox& a, const CollisionBox& b) {
+    return (a.x < b.x + b.width &&
+            a.x + a.width > b.x &&
+            a.y < b.y + b.height &&
+            a.y + a.height > b.y);
+}
+
+CollisionBox getPlayerCollisionBox() {
+    float x = player.x;
+    float y = player.y;
+    float width = player.width;
+    float height = player.height;
+
+    if (player.isDucking) {
+        height -= 40;
+    }
+
+    if (player.isJumping) {
+        y += jump; // 'jump' is your existing variable for jump height
+    }
+
+    return {x, y, width, height};
+}
+
+CollisionBox getObstacleCollisionBox(const Obstacle& obstacle) {
+    float width, height;
+    int fly = 0;
+    if(obstacle.type==2){
+        fly = 200;
+    }
+    float y = 175+fly;
+    switch (obstacle.type) {
+        case 1: // G
+            width = 75; height = 100;
+            break;
+        case 2: // U
+            width = 75; height = 100;
+            break;
+        case 3: // C
+            width = 75; height = 100;
+            break;
+        default:
+            width = 0; height = 0;
+    }
+
+    return {static_cast<float>(obstacle.position), y, width, height};
+}
+
+CollisionBox getFloaterCollisionBox(const Floaters& floater) {
+    float width = 30, height = 30; // Adjust these values based on your floater sizes
+    return {static_cast<float>(floater.position), 600.0f, width, height};
+}
+
+void handleCollisions() {
+    CollisionBox playerBox = getPlayerCollisionBox();
+
+    // Check collisions with obstacles
+    for (const auto& obstacle : obstacles) {
+        CollisionBox obstacleBox = getObstacleCollisionBox(obstacle);
+        if (checkCollision(playerBox, obstacleBox)) {
+            if (!player.hasCollided) {
+                // Handle obstacle collision
+                std::cout << "Collision with obstacle!" << std::endl;
+                // Add game over logic here
+                player.hasCollided = true;
+                player.collisionCooldown = 60; // Set cooldown for 60 frames (adjust as needed)
+            }
+            break; // Exit the loop after first collision
+        }
+    }
+
+    // Check collisions with floaters
+    for (auto it = floaters.begin(); it != floaters.end(); ) {
+        CollisionBox floaterBox = getFloaterCollisionBox(*it);
+        if (checkCollision(playerBox, floaterBox)) {
+            // Handle floater collision
+            switch (it->type) {
+                case 1: // Collectable
+                    std::cout << "Collected item!" << std::endl;
+                    // Add score increase logic here
+                    it = floaters.erase(it);
+                    continue;
+                case 2: // Shield PowerUp
+                    std::cout << "Shield activated!" << std::endl;
+                    // Add shield logic here
+                    it = floaters.erase(it);
+                    continue;
+                case 3: // Slow PowerUp
+                    std::cout << "Speed decreased!" << std::endl;
+                    speed = std::max(1, speed - 2); // Decrease speed, but keep it at least 1
+                    it = floaters.erase(it);
+                    continue;
+            }
+        }
+        ++it;
+    }
+
+    // Decrease collision cooldown
+    if (player.collisionCooldown > 0) {
+        player.collisionCooldown--;
+    } else {
+        player.hasCollided = false;
+    }
+}
+
 void Display(){
     glClear(GL_COLOR_BUFFER_BIT);
     
     
     UpperBorder();
-    
     
     //infinite lower border animation
     glPushMatrix();
@@ -116,6 +251,10 @@ void StandingHuman(){
     if(duckBool)
         duck=40;
     //head
+    
+    glPushMatrix();
+    glTranslated(0, jump, 0);
+    
     glBegin(GL_QUADS);
     glColor3f(0.5, 0.5, 0.5);
     glVertex2d(125, 350-duck);
@@ -152,6 +291,8 @@ void StandingHuman(){
     glVertex2d(140, 215-duck);
     glVertex2d(115, 175);
     glEnd();
+    
+    glPopMatrix();
     
 }
 
@@ -376,26 +517,52 @@ void UpperBorder(){
     glEnd();
 }
 
+
+void spe(int key, int x, int y) {
+    if (key == GLUT_KEY_DOWN && (!player.isJumping || !jumpAnimation)) {
+        player.isDucking = true;
+        duckBool = true;
+    }
+    if (key == GLUT_KEY_UP) {
+        if (jump == 0 && (!player.isDucking || !duckBool)) {
+            player.isJumping = true;
+            jumpAnimation = true;
+            jumpUp = true;
+        }
+    }
+    glutPostRedisplay();
+}
+
+
+
+void speUp(int key, int x, int y) {
+    if (key == GLUT_KEY_DOWN) {
+        player.isDucking = false;
+        duckBool = false;
+    }
+    glutPostRedisplay();
+}
+
 void Anim(){
     
     int currentTime = glutGet(GLUT_ELAPSED_TIME);
     int timeInterval = 1000 * (10-speed);
-    int randomTimeInterval = rand()%2500 * 100;
+    int randomTimeInterval = rand()%2500 * 100 * (10-speed);
     if (currentTime - lastObstacleTime >= timeInterval || lastObstacleTime == 0) {
         lastObstacleTime = currentTime;
         int randomType = 1 + (rand() % 3);
         
         obstacles.push_back({randomType, 1000});
     }
-
+    
     if (currentTime - lastFloatTime >= randomTimeInterval || lastFloatTime == 0) {
         lastFloatTime = currentTime;
         int randomValue = rand() % 100;  // Generate a number between 0 and 99
         int randomFloatType;
-
-        if (randomValue < 70) {
+        
+        if (randomValue < 50) {
             randomFloatType = 1;  // 70% chance
-        } else if (randomValue < 85) {
+        } else if (randomValue < 75) {
             randomFloatType = 2;  // 15% chance
         } else {
             randomFloatType = 3;  // 15% chance
@@ -407,7 +574,7 @@ void Anim(){
     // Update obstacle positions and remove those that have moved off the screen
     for (auto it = obstacles.begin(); it != obstacles.end(); ) {
         it->position -= speed; // Move the obstacle to the left
-
+        
         // Remove the obstacle if it goes off the screen
         if (it->position < -1000) {
             it = obstacles.erase(it);
@@ -443,9 +610,41 @@ void Anim(){
         upAndDown-=1;
     }
     
+    if(jumpAnimation){
+        if(jump<=0){
+            if(!jumpUp){
+                jumpAnimation = false;
+                jumpUp = false;
+                jump+=15;
+            }
+            else
+                jumpUp = true;
+        }
+        if(jump >= 400){
+            jumpUp = false;
+            
+        }
+        
+        if(jumpUp){
+            jump+=15;
+        }
+        else{
+            jump-=15;
+        }
+    }
+    
+    
     if(movingBackground<=-1080){
         movingBackground=0;
     }
+    
+    handleCollisions();
+    
+    // Reset collision state if cooldown has expired
+    if (player.collisionCooldown == 0) {
+        player.hasCollided = false;
+    }
+    
     glutPostRedisplay();
 }
 
@@ -456,6 +655,8 @@ int main(int argc, char** argr){
 
     glutCreateWindow("Infinite Runner");
     glutDisplayFunc(Display);
+    glutSpecialFunc(spe);
+    glutSpecialUpFunc(speUp);
     glClearColor(1, 1, 1, 0);
     gluOrtho2D(0, 1000, 0, 1000);
     glutMainLoop();
